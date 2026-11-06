@@ -1,0 +1,81 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function facilityDoc(fid) { return /databases/$(database)/documents/facilities/$(fid); }
+    function memberDoc(fid) {
+      return /databases/$(database)/documents/facilities/$(fid)/members/$(request.auth.uid);
+    }
+
+    // Checks the database as it is BEFORE this write (normal operations)
+    function isMember(fid) { return signedIn() && exists(memberDoc(fid)); }
+    function isAdmin(fid) {
+      return isMember(fid) && get(memberDoc(fid)).data.role in ['owner', 'admin'];
+    }
+
+    // Checks the database AFTER this write (needed inside the signup batch)
+    function isMemberAfter(fid) { return signedIn() && existsAfter(memberDoc(fid)); }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.facilityId is string;
+      allow update: if signedIn() && request.auth.uid == uid
+        && request.resource.data.facilityId == resource.data.facilityId;
+      allow delete: if false;
+    }
+
+    match /facilities/{facilityId} {
+      allow read: if isMember(facilityId);
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.name is string;
+      allow update: if isAdmin(facilityId)
+        && request.resource.data.ownerUid == resource.data.ownerUid;
+      allow delete: if false;
+
+      match /members/{uid} {
+        allow read: if isMember(facilityId) || (signedIn() && request.auth.uid == uid);
+        // the creator joins their own brand-new facility as owner, or an admin adds someone
+        allow create: if signedIn() && (
+          (request.auth.uid == uid
+            && request.resource.data.role == 'owner'
+            && getAfter(facilityDoc(facilityId)).data.ownerUid == request.auth.uid)
+          || isAdmin(facilityId));
+        allow update: if isAdmin(facilityId)
+          && uid != get(facilityDoc(facilityId)).data.ownerUid;
+        allow delete: if false;
+      }
+
+      match /practices/{id} {
+        allow read: if isMember(facilityId);
+        allow create, update: if isAdmin(facilityId);
+        allow delete: if false;
+      }
+      match /services/{id} {
+        allow read: if isMember(facilityId);
+        allow create, update: if isAdmin(facilityId);
+        allow delete: if false;
+      }
+      match /staff/{id} {
+        allow read: if isMember(facilityId);
+        allow create, update: if isAdmin(facilityId);
+        allow delete: if false;
+      }
+      match /patients/{id} {
+        allow read, create, update: if isMember(facilityId);
+        allow delete: if false;
+      }
+      match /appointments/{id} {
+        allow read, create, update: if isMember(facilityId);
+        allow delete: if false;
+      }
+      match /counters/{id} {
+        allow read, update: if isMember(facilityId);
+        allow create: if isMemberAfter(facilityId);   // works inside the signup batch
+        allow delete: if false;
+      }
+    }
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User account linking to facility",
+      "type": "object",
+      "properties": {
+        "facilityId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["facilityId", "displayName", "email"]
+    },
+    "Facility": {
+      "title": "Facility",
+      "description": "Healthcare facility details housing practices",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "maxLength": 100, "minLength": 2 },
+        "timezone": { "type": "string" },
+        "openingHours": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "setupCompleted": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["name", "timezone", "openingHours", "ownerUid"]
+    },
+    "FacilityMember": {
+      "title": "FacilityMember",
+      "description": "Facility staff member / role assignment",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["owner", "admin", "receptionist", "practitioner"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["userId", "displayName", "email", "role"]
+    },
+    "Practice": {
+      "title": "Practice",
+      "description": "Practice operating within the facility sharing reception desk",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "facilityType": { "type": "string" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "facilityType", "active"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Consultation or procedure service scoped to a practice",
+      "type": "object",
+      "properties": {
+        "practiceId": { "type": "string" },
+        "name": { "type": "string", "minLength": 1 },
+        "durationMinutes": { "type": "number", "minimum": 1 },
+        "bufferMinutes": { "type": "number", "minimum": 0 },
+        "isCustom": { "type": "boolean" },
+        "catalogKey": { "type": ["string", "null"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "active", "durationMinutes", "bufferMinutes"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Practitioner profile and associated practices",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "role": { "type": "string", "enum": ["doctor", "nurse", "other"] },
+        "practiceIds": { "type": "array", "items": { "type": "string" } },
+        "weeklyHours": { "type": "object" },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "role", "weeklyHours", "active"]
+    },
+    "Patient": {
+      "title": "Patient",
+      "description": "Patient record with phone and WhatsApp reminder consent",
+      "type": "object",
+      "properties": {
+        "fullName": { "type": "string", "minLength": 1 },
+        "phone": { "type": "string", "minLength": 7 },
+        "whatsappConsent": { "type": "boolean" },
+        "whatsappConsentAt": { "type": ["string", "null"] },
+        "active": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["fullName", "phone", "whatsappConsent", "active"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "Facility appointment record",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "practiceId": { "type": "string" },
+        "practiceName": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "serviceName": { "type": "string" },
+        "staffId": { "type": "string" },
+        "staffName": { "type": "string" },
+        "startAt": { "type": "string" },
+        "endAt": { "type": "string" },
+        "status": { "type": "string", "enum": ["booked", "confirmed", "cancelled", "attended", "noShow"] },
+        "source": { "type": "string" },
+        "notes": { "type": "string" },
+        "statusHistory": { "type": "array" },
+        "reminderSentAt": { "type": ["string", "null"] },
+        "createdAt": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["patientId", "patientName", "practiceId", "serviceId", "staffId", "startAt", "endAt", "status", "source"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User mapping to facility"
+    },
+    "/facilities/{facilityId}": {
+      "schema": { "$ref": "#/entities/Facility" },
+      "description": "Facility document"
+    },
+    "/facilities/{facilityId}/members/{uid}": {
+      "schema": { "$ref": "#/entities/FacilityMember" },
+      "description": "Facility members and RBAC"
+    },
+    "/facilities/{facilityId}/practices/{practiceId}": {
+      "schema": { "$ref": "#/entities/Practice" },
+      "description": "Practices within the facility"
+    },
+    "/facilities/{facilityId}/services/{serviceId}": {
+      "schema": { "$ref": "#/entities/Service" },
+      "description": "Services offered by practices"
+    },
+    "/facilities/{facilityId}/staff/{staffId}": {
+      "schema": { "$ref": "#/entities/Staff" },
+      "description": "Staff under facility"
+    },
+    "/facilities/{facilityId}/patients/{patientId}": {
+      "schema": { "$ref": "#/entities/Patient" },
+      "description": "Patients under facility"
+    },
+    "/facilities/{facilityId}/appointments/{appointmentId}": {
+      "schema": { "$ref": "#/entities/Appointment" },
+      "description": "Appointments under facility"
+    }
+  }
+}
